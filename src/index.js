@@ -1,6 +1,7 @@
 import { initializeConfig, getSpreadsheetId } from './config.js';
 import { writeError } from './sheets.js';
 import { startServer } from './server.js';
+import { startPubSubListener } from './pubsub.js';
 
 async function testErrorLogging() {
   try {
@@ -29,6 +30,7 @@ async function testErrorLogging() {
 async function main() {
   try {
     await startServer();
+    await startPubSubListener();
     await testErrorLogging();
     console.log('[DEBUG] Application started successfully');
   } catch (error) {
