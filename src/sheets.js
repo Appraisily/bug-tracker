@@ -6,7 +6,7 @@ async function getSpreadsheetId() {
     console.log('[DEBUG] Initializing SecretManagerServiceClient');
     const client = new SecretManagerServiceClient();
     
-    const name = 'projects/civil-forge-403609/secrets/SHEETS_ID_BUCK_TRACKER/versions/latest';
+    const name = 'projects/civil-forge-403609/secrets/SHEETS_ID_BUG_TRACKER/versions/latest';
     console.log('[DEBUG] Accessing secret version:', name);
     
     const [version] = await client.accessSecretVersion({ name });
