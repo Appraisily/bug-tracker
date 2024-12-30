@@ -1,5 +1,6 @@
 import { initializeConfig, getSpreadsheetId } from './config.js';
 import { writeError } from './sheets.js';
+import { startServer } from './server.js';
 
 async function testErrorLogging() {
   try {
@@ -24,3 +25,16 @@ async function testErrorLogging() {
     throw error;
   }
 }
+
+async function main() {
+  try {
+    await startServer();
+    await testErrorLogging();
+    console.log('[DEBUG] Application started successfully');
+  } catch (error) {
+    console.error('[DEBUG] Application failed to start:', error);
+    process.exit(1);
+  }
+}
+
+main();
