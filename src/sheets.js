@@ -1,5 +1,4 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
-import { secretManagerClient } from './config.js';
 import { getSpreadsheetId } from './config.js';
 
 async function getSheet() {
