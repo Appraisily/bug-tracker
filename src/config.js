@@ -1,22 +1,13 @@
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Cache for spreadsheet ID
 let spreadsheetId = null;
 
-// Secret Manager client (lazy initialization)
-let secretManagerClient = null;
-
-function getSecretManagerClient() {
-  if (!secretManagerClient) {
-    console.log('[DEBUG] Initializing Secret Manager client');
-    secretManagerClient = new SecretManagerServiceClient();
-  }
-  return secretManagerClient;
-}
-
 /**
- * Retrieves the spreadsheet ID from Secret Manager.
- * The ID is stored in a secret named 'SHEETS_ID_BUG_TRACKER'.
+ * Initializes configuration by getting spreadsheet ID from environment.
+ * In Cloud Run, this will come from the runtime configuration.
  */
 export async function initializeConfig() {
   try {
@@ -25,17 +16,17 @@ export async function initializeConfig() {
       return;
     }
 
-    const client = getSecretManagerClient();
-    const name = 'projects/civil-forge-403609/secrets/SHEETS_ID_BUG_TRACKER/versions/latest';
+    // In Cloud Run, this comes from the runtime configuration
+    spreadsheetId = process.env.SHEETS_ID_BUG_TRACKER;
     
-    console.log('[DEBUG] Fetching spreadsheet ID from Secret Manager');
-    const [version] = await client.accessSecretVersion({ name });
-    spreadsheetId = version.payload.data.toString();
+    if (!spreadsheetId) {
+      throw new Error('SHEETS_ID_BUG_TRACKER environment variable is not set');
+    }
     
-    console.log('[DEBUG] Successfully retrieved spreadsheet ID from Secret Manager');
+    console.log('[DEBUG] Successfully initialized configuration');
   } catch (error) {
     console.error('[DEBUG] Failed to initialize config:', error);
-    throw new Error('Failed to retrieve spreadsheet ID from Secret Manager: ' + error.message);
+    throw error;
   }
 }
 
