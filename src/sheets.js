@@ -1,21 +1,24 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
-import { JWT } from 'google-auth-library';
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
-async function getAuthenticatedClient() {
-  const serviceAccountAuth = new JWT({
-    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    scopes: SCOPES,
-  });
-  
-  return serviceAccountAuth;
+async function getSpreadsheetId() {
+  const client = new SecretManagerServiceClient();
+  const name = 'projects/civil-forge-403609/secrets/SHEETS_ID_BUCK_TRACKER/versions/latest';
+  const [version] = await client.accessSecretVersion({ name });
+  return version.payload.data.toString();
 }
 
 async function getSheet() {
-  const auth = await getAuthenticatedClient();
-  const doc = new GoogleSpreadsheet(process.env.SPREADSHEET_ID, auth);
+  const spreadsheetId = await getSpreadsheetId();
+  const doc = new GoogleSpreadsheet(spreadsheetId);
+  
+  // Use Application Default Credentials
+  await doc.useServiceAccountAuth({
+    scopes: SCOPES
+  });
+  
   await doc.loadInfo();
   
   let sheet = doc.sheetsByTitle['Errors'];
