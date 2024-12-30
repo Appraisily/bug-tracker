@@ -100,6 +100,7 @@ export async function saveError({ timestamp, service, severity, errorMessage, st
       'Stack Trace': stackTrace,
       Metadata: metadata
     });
+    console.log('[DEBUG] Successfully added row to sheet');
   } catch (error) {
     console.error('Error saving to sheet:', error);
     console.error('[DEBUG] Error saving to sheet:', {
@@ -110,3 +111,5 @@ export async function saveError({ timestamp, service, severity, errorMessage, st
       severity
     });
     throw error;
+  }
+}
