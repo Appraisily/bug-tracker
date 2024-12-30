@@ -1,4 +1,4 @@
-import { saveError } from './sheets.js';
+import { writeError } from './sheets.js';
 
 export async function processLogEntry(logEntry) {
   console.log('[DEBUG] Processing log entry:', {
@@ -28,7 +28,7 @@ export async function processLogEntry(logEntry) {
     });
   }
 
-  await saveError({
+  await writeError({
     timestamp: logEntry.timestamp,
     service,
     severity: logEntry.severity,
