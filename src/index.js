@@ -1,35 +1,26 @@
-import { getSheetsClient } from './auth.js';
 import { initializeConfig, getSpreadsheetId } from './config.js';
+import { writeError } from './sheets.js';
 
-async function writeHelloWorld() {
+async function testErrorLogging() {
   try {
-    console.log('[DEBUG] Starting hello world test');
-
+    console.log('[DEBUG] Starting error logging test');
     await initializeConfig();
-    const spreadsheetId = getSpreadsheetId();
-    const sheets = await getSheetsClient();
-
-    // Write data
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: 'Test!A:B',
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      resource: {
-        values: [['Hello World', new Date().toISOString()]]
-      }
+    
+    await writeError({
+      service: 'test-service',
+      severity: 'ERROR',
+      message: 'Test error message',
+      stack: 'Error: Test error\n    at testErrorLogging',
+      metadata: { test: true }
     });
-
-    console.log('[DEBUG] Successfully wrote hello world to sheet');
-    process.exit(0);
+    
+    console.log('[DEBUG] Successfully logged test error');
   } catch (error) {
     console.error('[DEBUG] Error details:', {
       message: error.message,
       stack: error.stack,
       response: error.response?.data || error.response
     });
-    process.exit(1);
+    throw error;
   }
 }
-
-writeHelloWorld();

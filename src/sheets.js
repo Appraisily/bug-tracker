@@ -1,90 +1,79 @@
-import { GoogleSpreadsheet } from 'google-spreadsheet';
+import { getSheetsClient } from './auth.js';
 import { getSpreadsheetId } from './config.js';
-import { getAuthenticatedClient } from './auth.js';
 
-let cachedDoc = null;
-let lastInfoLoad = null;
-const INFO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const SHEET_NAME = 'Errors';
+const HEADERS = ['Timestamp', 'Service', 'Severity', 'Error Message', 'Stack Trace', 'Metadata'];
 
-async function getSheet() {
-  console.log('[DEBUG] Getting spreadsheet ID');
-  try {
-    const spreadsheetId = getSpreadsheetId();
-    console.log('[DEBUG] Got spreadsheet ID:', spreadsheetId);
+async function ensureSheetExists() {
+  const spreadsheetId = getSpreadsheetId();
+  const sheets = await getSheetsClient();
 
-    const needsInfoReload = !lastInfoLoad || (Date.now() - lastInfoLoad) > INFO_REFRESH_INTERVAL;
-    
-    if (!cachedDoc) {
-      console.log('[DEBUG] Creating new GoogleSpreadsheet instance');
-      cachedDoc = new GoogleSpreadsheet(spreadsheetId);
-      
-      console.log('[DEBUG] Authenticating with service account');
-      const client = await getAuthenticatedClient();
-      await cachedDoc.useServiceAccountAuth(client);
-    } else {
-      console.log('[DEBUG] Using cached spreadsheet instance');
-    }
-    
-    if (needsInfoReload) {
-      console.log('[DEBUG] Reloading spreadsheet info');
-      await cachedDoc.loadInfo();
-      lastInfoLoad = Date.now();
-      console.log('[DEBUG] Spreadsheet info reloaded:', {
-        title: cachedDoc.title,
-        sheetCount: cachedDoc.sheetCount,
-        lastInfoLoad
-      });
-    }
-    
-    let sheet = cachedDoc.sheetsByTitle['Errors'];
-    if (!sheet) {
-      console.log('[DEBUG] Creating new Errors sheet');
-      sheet = await cachedDoc.addSheet({
-        title: 'Errors',
-        headerValues: ['Timestamp', 'Service', 'Severity', 'Error Message', 'Stack Trace', 'Metadata']
-      });
-      console.log('[DEBUG] New sheet created');
-    }
-    
-    return sheet;
-  } catch (error) {
-    console.error('[DEBUG] Error in getSheet:', {
-      error: error.message,
-      stack: error.stack,
-      type: error.constructor.name,
-      hadCachedDoc: !!cachedDoc,
-      lastInfoLoad: lastInfoLoad ? new Date(lastInfoLoad).toISOString() : null
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: 'sheets.properties'
+  });
+
+  const sheet = spreadsheet.data.sheets?.find(
+    sheet => sheet.properties?.title === SHEET_NAME
+  );
+
+  if (!sheet) {
+    console.log(`[DEBUG] Creating ${SHEET_NAME} sheet`);
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [{
+          addSheet: {
+            properties: {
+              title: SHEET_NAME
+            }
+          }
+        }]
+      }
     });
-    
-    // Reset cache on error
-    cachedDoc = null;
-    lastInfoLoad = null;
-    throw error;
+
+    // Add headers
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${SHEET_NAME}!A1:F1`,
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [HEADERS]
+      }
+    });
   }
 }
 
-export async function saveError({ timestamp, service, severity, errorMessage, stackTrace, metadata }) {
+export async function writeError(error) {
   try {
-    console.log('[DEBUG] Starting to save error', { service, severity });
-    const sheet = await getSheet();
-    console.log('[DEBUG] Adding new row to sheet');
-    await sheet.addRow({
-      Timestamp: timestamp,
-      Service: service,
-      Severity: severity,
-      'Error Message': errorMessage,
-      'Stack Trace': stackTrace,
-      Metadata: metadata
+    await ensureSheetExists();
+    
+    const spreadsheetId = getSpreadsheetId();
+    const sheets = await getSheetsClient();
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${SHEET_NAME}!A:F`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: {
+        values: [[
+          new Date().toISOString(),
+          error.service || 'unknown',
+          error.severity || 'ERROR',
+          error.message,
+          error.stack || '',
+          JSON.stringify(error.metadata || {})
+        ]]
+      }
     });
-    console.log('[DEBUG] Successfully added row to sheet');
+
+    console.log('[DEBUG] Successfully wrote error to sheet');
   } catch (error) {
-    console.error('Error saving to sheet:', error);
-    console.error('[DEBUG] Error saving to sheet:', {
-      error: error.message,
+    console.error('[DEBUG] Error writing to sheet:', {
+      message: error.message,
       stack: error.stack,
-      type: error.constructor.name,
-      service,
-      severity
+      response: error.response?.data || error.response
     });
     throw error;
   }
