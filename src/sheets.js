@@ -1,18 +1,24 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
-// Initialize the Secret Manager client once
 const secretManagerClient = new SecretManagerServiceClient();
+let cachedSpreadsheetId = null;
 
 async function getSpreadsheetId() {
   try {
+    if (cachedSpreadsheetId) {
+      console.log('[DEBUG] Using cached spreadsheet ID');
+      return cachedSpreadsheetId;
+    }
+
     const name = 'projects/civil-forge-403609/secrets/SHEETS_ID_BUG_TRACKER/versions/latest';
     console.log('[DEBUG] Accessing secret version:', name);
     
     const [version] = await secretManagerClient.accessSecretVersion({ name });
-    console.log('[DEBUG] Successfully retrieved secret version');
+    cachedSpreadsheetId = version.payload.data.toString();
+    console.log('[DEBUG] Successfully retrieved and cached spreadsheet ID');
     
-    return version.payload.data.toString();
+    return cachedSpreadsheetId;
   } catch (error) {
     console.error('[DEBUG] Error in getSpreadsheetId:', {
       error: error.message,
@@ -30,18 +36,24 @@ async function getSheet() {
     const spreadsheetId = await getSpreadsheetId();
     console.log('[DEBUG] Got spreadsheet ID:', spreadsheetId);
 
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
+      throw new Error('Missing required Google service account credentials');
+    }
+
+    const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
+    console.log('[DEBUG] Service account credentials check:', {
+      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      hasPrivateKey: !!privateKey,
+      privateKeyLength: privateKey.length
+    });
+
     console.log('[DEBUG] Creating GoogleSpreadsheet instance');
     const doc = new GoogleSpreadsheet(spreadsheetId);
-    
-    console.log('[DEBUG] Service account details:', {
-      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY
-    });
     
     console.log('[DEBUG] Authenticating with service account');
     await doc.useServiceAccountAuth({
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+      private_key: privateKey
     });
     
     console.log('[DEBUG] Loading spreadsheet info');
@@ -67,8 +79,9 @@ async function getSheet() {
     console.error('[DEBUG] Error in getSheet:', {
       error: error.message,
       stack: error.stack,
-      code: error.code,
-      details: error.details
+      code: error.code || 'NO_CODE',
+      details: error.details || 'NO_DETAILS',
+      type: error.constructor.name
     });
     throw error;
   }
@@ -92,9 +105,8 @@ export async function saveError({ timestamp, service, severity, errorMessage, st
     console.error('[DEBUG] Error saving to sheet:', {
       error: error.message,
       stack: error.stack,
+      type: error.constructor.name,
       service,
       severity
     });
     throw error;
-  }
-}
