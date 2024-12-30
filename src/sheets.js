@@ -1,7 +1,6 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
-
-const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+import { auth } from '@google-cloud/local-auth';
 
 async function getSpreadsheetId() {
   const client = new SecretManagerServiceClient();
@@ -13,11 +12,7 @@ async function getSpreadsheetId() {
 async function getSheet() {
   const spreadsheetId = await getSpreadsheetId();
   const doc = new GoogleSpreadsheet(spreadsheetId);
-  
-  // Use Application Default Credentials
-  await doc.useServiceAccountAuth({
-    scopes: SCOPES
-  });
+  await doc.useServiceAccountAuth(auth.getClient());
   
   await doc.loadInfo();
   
