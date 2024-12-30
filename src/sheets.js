@@ -1,6 +1,8 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { getSpreadsheetId } from './config.js';
-import { GoogleAuth } from 'google-auth-library';
+import { getAuthenticatedClient } from './auth.js';
+
+let cachedDoc = null;
 
 async function getSheet() {
   console.log('[DEBUG] Getting spreadsheet ID');
@@ -8,28 +10,29 @@ async function getSheet() {
     const spreadsheetId = getSpreadsheetId();
     console.log('[DEBUG] Got spreadsheet ID:', spreadsheetId);
 
-    console.log('[DEBUG] Creating GoogleSpreadsheet instance');
-    const doc = new GoogleSpreadsheet(spreadsheetId);
+    if (!cachedDoc) {
+      console.log('[DEBUG] Creating new GoogleSpreadsheet instance');
+      cachedDoc = new GoogleSpreadsheet(spreadsheetId);
+      
+      console.log('[DEBUG] Authenticating with service account');
+      const client = await getAuthenticatedClient();
+      await cachedDoc.useServiceAccountAuth(client);
+      
+      console.log('[DEBUG] Loading spreadsheet info');
+      await cachedDoc.loadInfo();
+      console.log('[DEBUG] Spreadsheet info loaded:', {
+        title: cachedDoc.title,
+        sheetCount: cachedDoc.sheetCount,
+        availableSheets: Object.keys(cachedDoc.sheetsByTitle)
+      });
+    } else {
+      console.log('[DEBUG] Using cached spreadsheet instance');
+    }
     
-    console.log('[DEBUG] Authenticating with service account');
-    const auth = new GoogleAuth({
-      scopes: ['https://www.googleapis.com/auth/spreadsheets']
-    });
-    const client = await auth.getClient();
-    await doc.useServiceAccountAuth(client);
-    
-    console.log('[DEBUG] Loading spreadsheet info');
-    await doc.loadInfo();
-    console.log('[DEBUG] Spreadsheet info loaded:', {
-      title: doc.title,
-      sheetCount: doc.sheetCount,
-      availableSheets: Object.keys(doc.sheetsByTitle)
-    });
-    
-    let sheet = doc.sheetsByTitle['Errors'];
+    let sheet = cachedDoc.sheetsByTitle['Errors'];
     if (!sheet) {
       console.log('[DEBUG] Creating new Errors sheet');
-      sheet = await doc.addSheet({
+      sheet = await cachedDoc.addSheet({
         title: 'Errors',
         headerValues: ['Timestamp', 'Service', 'Severity', 'Error Message', 'Stack Trace', 'Metadata']
       });
