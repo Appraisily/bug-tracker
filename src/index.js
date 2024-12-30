@@ -1,23 +1,23 @@
-import dotenv from 'dotenv';
 import { GoogleSpreadsheet } from 'google-spreadsheet';
-import { GoogleAuth } from 'google-auth-library';
-
-dotenv.config();
+import { getAuthenticatedClient } from './auth.js';
+import { initializeConfig, getSpreadsheetId } from './config.js';
 
 async function writeHelloWorld() {
   try {
     console.log('[DEBUG] Starting hello world test');
     
-    // Create auth client
-    const auth = new GoogleAuth({
-      scopes: ['https://www.googleapis.com/auth/spreadsheets']
-    });
-    const client = await auth.getClient();
+    // Initialize config to get spreadsheet ID from Secret Manager
+    await initializeConfig();
     
-    // Initialize spreadsheet
-    const doc = new GoogleSpreadsheet(process.env.SPREADSHEET_ID);
+    // Initialize spreadsheet with auth
+    const spreadsheetId = getSpreadsheetId();
+    const doc = new GoogleSpreadsheet(spreadsheetId);
+    const client = await getAuthenticatedClient();
     await doc.useServiceAccountAuth(client);
+    
+    // Load document info
     await doc.loadInfo();
+    console.log('[DEBUG] Loaded spreadsheet:', doc.title);
     
     // Get or create sheet
     let sheet = doc.sheetsByTitle['Test'];
