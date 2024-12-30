@@ -1,17 +1,28 @@
 import dotenv from 'dotenv';
-import { Logging } from '@google-cloud/logging';
+import { PubSub } from '@google-cloud/pubsub';
 import { processLogEntry } from './logging.js';
 
 dotenv.config();
 
-const logging = new Logging();
-const filter = 'severity >= ERROR';
+const pubsub = new PubSub();
+const subscriptionName = 'bug-tracker-errors';
 
-const subscription = logging.subscription('bug-tracker-errors');
+const subscription = pubsub.subscription(subscriptionName);
 
-subscription.on('message', async (message) => {
-  if (message.data.severity === 'ERROR' || message.data.severity === 'CRITICAL') {
-    await processLogEntry(message.data);
+subscription.on('message', async (pubsubMessage) => {
+  try {
+    const logEntry = JSON.parse(Buffer.from(pubsubMessage.data, 'base64').toString());
+    
+    if (logEntry.severity === 'ERROR' || logEntry.severity === 'CRITICAL') {
+      await processLogEntry(logEntry);
+    }
+    pubsubMessage.ack();
+  } catch (error) {
+    console.error('Error processing message:', error);
+    pubsubMessage.nack();
   }
-  message.ack();
+});
+
+subscription.on('error', (error) => {
+  console.error('Subscription error:', error);
 });
