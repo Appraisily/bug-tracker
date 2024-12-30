@@ -34,7 +34,13 @@ async function writeHelloWorld() {
     console.log('[DEBUG] Successfully wrote hello world to sheet');
     process.exit(0);
   } catch (error) {
-    console.error('[DEBUG] Error:', error);
+    console.error('[DEBUG] Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      errors: error.errors,
+      response: error.response?.data
+    });
     process.exit(1);
   }
 }

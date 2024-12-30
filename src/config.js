@@ -1,12 +1,8 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
-
 // Cache for spreadsheet ID
 let spreadsheetId = null;
 
 /**
- * Initializes configuration by getting spreadsheet ID from environment.
+ * Initializes configuration by getting spreadsheet ID.
  * In Cloud Run, this will come from the runtime configuration.
  */
 export async function initializeConfig() {

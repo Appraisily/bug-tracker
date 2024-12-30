@@ -17,5 +17,6 @@ export async function getAuthenticatedClient() {
   }
 
   cachedClient = await cachedAuth.getClient();
+  console.log('[DEBUG] Successfully created authenticated client');
   return cachedClient;
 }
