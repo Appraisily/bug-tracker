@@ -1,6 +1,6 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { getSpreadsheetId } from './config.js';
-import { auth } from '@google-cloud/pubsub';
+import { GoogleAuth } from 'google-auth-library';
 
 async function getSheet() {
   console.log('[DEBUG] Getting spreadsheet ID');
@@ -12,8 +12,11 @@ async function getSheet() {
     const doc = new GoogleSpreadsheet(spreadsheetId);
     
     console.log('[DEBUG] Authenticating with service account');
-    const credentials = await auth.getClient();
-    await doc.useServiceAccountAuth(credentials);
+    const auth = new GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    });
+    const client = await auth.getClient();
+    await doc.useServiceAccountAuth(client);
     
     console.log('[DEBUG] Loading spreadsheet info');
     await doc.loadInfo();
