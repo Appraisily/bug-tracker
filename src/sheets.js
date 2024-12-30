@@ -3,6 +3,8 @@ import { getSpreadsheetId } from './config.js';
 import { getAuthenticatedClient } from './auth.js';
 
 let cachedDoc = null;
+let lastInfoLoad = null;
+const INFO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 async function getSheet() {
   console.log('[DEBUG] Getting spreadsheet ID');
@@ -10,6 +12,8 @@ async function getSheet() {
     const spreadsheetId = getSpreadsheetId();
     console.log('[DEBUG] Got spreadsheet ID:', spreadsheetId);
 
+    const needsInfoReload = !lastInfoLoad || (Date.now() - lastInfoLoad) > INFO_REFRESH_INTERVAL;
+    
     if (!cachedDoc) {
       console.log('[DEBUG] Creating new GoogleSpreadsheet instance');
       cachedDoc = new GoogleSpreadsheet(spreadsheetId);
@@ -17,16 +21,19 @@ async function getSheet() {
       console.log('[DEBUG] Authenticating with service account');
       const client = await getAuthenticatedClient();
       await cachedDoc.useServiceAccountAuth(client);
-      
-      console.log('[DEBUG] Loading spreadsheet info');
-      await cachedDoc.loadInfo();
-      console.log('[DEBUG] Spreadsheet info loaded:', {
-        title: cachedDoc.title,
-        sheetCount: cachedDoc.sheetCount,
-        availableSheets: Object.keys(cachedDoc.sheetsByTitle)
-      });
     } else {
       console.log('[DEBUG] Using cached spreadsheet instance');
+    }
+    
+    if (needsInfoReload) {
+      console.log('[DEBUG] Reloading spreadsheet info');
+      await cachedDoc.loadInfo();
+      lastInfoLoad = Date.now();
+      console.log('[DEBUG] Spreadsheet info reloaded:', {
+        title: cachedDoc.title,
+        sheetCount: cachedDoc.sheetCount,
+        lastInfoLoad
+      });
     }
     
     let sheet = cachedDoc.sheetsByTitle['Errors'];
@@ -44,10 +51,14 @@ async function getSheet() {
     console.error('[DEBUG] Error in getSheet:', {
       error: error.message,
       stack: error.stack,
-      code: error.code || 'NO_CODE',
-      details: error.details || 'NO_DETAILS',
-      type: error.constructor.name
+      type: error.constructor.name,
+      hadCachedDoc: !!cachedDoc,
+      lastInfoLoad: lastInfoLoad ? new Date(lastInfoLoad).toISOString() : null
     });
+    
+    // Reset cache on error
+    cachedDoc = null;
+    lastInfoLoad = null;
     throw error;
   }
 }
