@@ -2,40 +2,76 @@ import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
 async function getSpreadsheetId() {
-  const client = new SecretManagerServiceClient();
-  const name = 'projects/civil-forge-403609/secrets/SHEETS_ID_BUCK_TRACKER/versions/latest';
-  const [version] = await client.accessSecretVersion({ name });
-  return version.payload.data.toString();
+  try {
+    console.log('[DEBUG] Initializing SecretManagerServiceClient');
+    const client = new SecretManagerServiceClient();
+    
+    const name = 'projects/civil-forge-403609/secrets/SHEETS_ID_BUCK_TRACKER/versions/latest';
+    console.log('[DEBUG] Accessing secret version:', name);
+    
+    const [version] = await client.accessSecretVersion({ name });
+    console.log('[DEBUG] Successfully retrieved secret version');
+    
+    return version.payload.data.toString();
+  } catch (error) {
+    console.error('[DEBUG] Error in getSpreadsheetId:', {
+      error: error.message,
+      stack: error.stack,
+      code: error.code,
+      details: error.details
+    });
+    throw error;
+  }
 }
 
 async function getSheet() {
   console.log('[DEBUG] Getting spreadsheet ID');
-  const spreadsheetId = await getSpreadsheetId();
-  console.log('[DEBUG] Creating GoogleSpreadsheet instance');
-  const doc = new GoogleSpreadsheet(spreadsheetId);
-  
-  console.log('[DEBUG] Authenticating with service account');
-  // Use default credentials from Cloud Run environment
-  await doc.useServiceAccountAuth({
-    client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-  });
-  
-  console.log('[DEBUG] Loading spreadsheet info');
-  await doc.loadInfo();
-  
-  let sheet = doc.sheetsByTitle['Errors'];
-  if (!sheet) {
-    console.log('[DEBUG] Creating new Errors sheet');
-    // Create the sheet if it doesn't exist
-    sheet = await doc.addSheet({
-      title: 'Errors',
-      headerValues: ['Timestamp', 'Service', 'Severity', 'Error Message', 'Stack Trace', 'Metadata']
+  try {
+    const spreadsheetId = await getSpreadsheetId();
+    console.log('[DEBUG] Got spreadsheet ID:', spreadsheetId);
+
+    console.log('[DEBUG] Creating GoogleSpreadsheet instance');
+    const doc = new GoogleSpreadsheet(spreadsheetId);
+    
+    console.log('[DEBUG] Service account details:', {
+      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY
     });
+    
+    console.log('[DEBUG] Authenticating with service account');
+    await doc.useServiceAccountAuth({
+      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    });
+    
+    console.log('[DEBUG] Loading spreadsheet info');
+    await doc.loadInfo();
+    console.log('[DEBUG] Spreadsheet info loaded:', {
+      title: doc.title,
+      sheetCount: doc.sheetCount,
+      availableSheets: Object.keys(doc.sheetsByTitle)
+    });
+    
+    let sheet = doc.sheetsByTitle['Errors'];
+    if (!sheet) {
+      console.log('[DEBUG] Creating new Errors sheet');
+      sheet = await doc.addSheet({
+        title: 'Errors',
+        headerValues: ['Timestamp', 'Service', 'Severity', 'Error Message', 'Stack Trace', 'Metadata']
+      });
+      console.log('[DEBUG] New sheet created');
+    }
+    
+    return sheet;
+  } catch (error) {
+    console.error('[DEBUG] Error in getSheet:', {
+      error: error.message,
+      stack: error.stack,
+      code: error.code,
+      details: error.details
+    });
+    throw error;
   }
-  console.log('[DEBUG] Sheet ready');
-  
-  return sheet;
 }
 
 export async function saveError({ timestamp, service, severity, errorMessage, stackTrace, metadata }) {
