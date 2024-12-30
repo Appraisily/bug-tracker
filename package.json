@@ -5,8 +5,7 @@
     "start": "node src/index.js"
   },
   "dependencies": {
-    "google-spreadsheet": "^4.1.1",
-    "google-auth-library": "^9.4.1"
+    "googleapis": "^129.0.0"
   },
   "type": "module"
 }
