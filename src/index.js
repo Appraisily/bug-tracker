@@ -12,8 +12,7 @@ async function writeHelloWorld() {
     // Initialize spreadsheet with auth
     const spreadsheetId = getSpreadsheetId();
     const doc = new GoogleSpreadsheet(spreadsheetId);
-    const client = await getAuthenticatedClient();
-    await doc.useServiceAccountAuth(client);
+    await doc.useServiceAccountClient(await getAuthenticatedClient());
     
     // Load document info
     await doc.loadInfo();
