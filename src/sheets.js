@@ -1,15 +1,15 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 
+// Initialize the Secret Manager client once
+const secretManagerClient = new SecretManagerServiceClient();
+
 async function getSpreadsheetId() {
   try {
-    console.log('[DEBUG] Initializing SecretManagerServiceClient');
-    const client = new SecretManagerServiceClient();
-    
     const name = 'projects/civil-forge-403609/secrets/SHEETS_ID_BUG_TRACKER/versions/latest';
     console.log('[DEBUG] Accessing secret version:', name);
     
-    const [version] = await client.accessSecretVersion({ name });
+    const [version] = await secretManagerClient.accessSecretVersion({ name });
     console.log('[DEBUG] Successfully retrieved secret version');
     
     return version.payload.data.toString();
