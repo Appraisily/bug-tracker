@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "googleapis": "^129.0.0"
+    "@google-cloud/pubsub": "^4.0.7"
   },
   "type": "module"
 }
