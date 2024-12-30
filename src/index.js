@@ -24,14 +24,26 @@ const subscription = pubsub.subscription(subscriptionName);
 
 subscription.on('message', async (pubsubMessage) => {
   try {
+    console.log('[DEBUG] Received message:', pubsubMessage.id);
     const logEntry = JSON.parse(Buffer.from(pubsubMessage.data, 'base64').toString());
+    console.log('[DEBUG] Parsed log entry:', {
+      severity: logEntry.severity,
+      service: logEntry.resource?.labels?.service_name,
+      timestamp: logEntry.timestamp
+    });
     
     if (logEntry.severity === 'ERROR' || logEntry.severity === 'CRITICAL') {
+      console.log('[DEBUG] Processing error log entry');
       await processLogEntry(logEntry);
+      console.log('[DEBUG] Successfully processed error log entry');
     }
     pubsubMessage.ack();
   } catch (error) {
-    console.error('Error processing message:', error);
+    console.error('[DEBUG] Error processing message:', {
+      error: error.message,
+      stack: error.stack,
+      messageId: pubsubMessage.id
+    });
     pubsubMessage.nack();
   }
 });
