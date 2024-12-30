@@ -1,5 +1,6 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { getSpreadsheetId } from './config.js';
+import { auth } from '@google-cloud/pubsub';
 
 async function getSheet() {
   console.log('[DEBUG] Getting spreadsheet ID');
@@ -7,25 +8,12 @@ async function getSheet() {
     const spreadsheetId = getSpreadsheetId();
     console.log('[DEBUG] Got spreadsheet ID:', spreadsheetId);
 
-    if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-      throw new Error('Missing required Google service account credentials');
-    }
-
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
-    console.log('[DEBUG] Service account credentials check:', {
-      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      hasPrivateKey: !!privateKey,
-      privateKeyLength: privateKey.length
-    });
-
     console.log('[DEBUG] Creating GoogleSpreadsheet instance');
     const doc = new GoogleSpreadsheet(spreadsheetId);
     
     console.log('[DEBUG] Authenticating with service account');
-    await doc.useServiceAccountAuth({
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: privateKey
-    });
+    const credentials = await auth.getClient();
+    await doc.useServiceAccountAuth(credentials);
     
     console.log('[DEBUG] Loading spreadsheet info');
     await doc.loadInfo();
