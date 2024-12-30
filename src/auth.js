@@ -1,22 +1,19 @@
 import { GoogleAuth } from 'google-auth-library';
 
-let cachedAuth = null;
-let cachedClient = null;
+let cachedCredentials = null;
 
 export async function getAuthenticatedClient() {
-  if (cachedClient) {
-    console.log('[DEBUG] Using cached authenticated client');
-    return cachedClient;
+  if (cachedCredentials) {
+    console.log('[DEBUG] Using cached credentials');
+    return cachedCredentials;
   }
 
-  console.log('[DEBUG] Creating new authenticated client');
-  if (!cachedAuth) {
-    cachedAuth = new GoogleAuth({
-      scopes: ['https://www.googleapis.com/auth/spreadsheets']
-    });
-  }
+  console.log('[DEBUG] Creating new credentials');
+  const auth = new GoogleAuth({
+    scopes: ['https://www.googleapis.com/auth/spreadsheets']
+  });
 
-  cachedClient = await cachedAuth.getClient();
-  console.log('[DEBUG] Successfully created authenticated client');
-  return cachedClient;
+  cachedCredentials = await auth.getCredentials();
+  console.log('[DEBUG] Successfully created credentials');
+  return cachedCredentials;
 }
