@@ -2,15 +2,17 @@ import dotenv from 'dotenv';
 import { PubSub } from '@google-cloud/pubsub';
 import http from 'http';
 import { processLogEntry } from './logging.js';
+import { initializeConfig } from './config.js';
 
 dotenv.config();
 
 const port = process.env.PORT || 8080;
 
+// Initialize configuration before starting server
+await initializeConfig();
+
 // Create HTTP server for health checks
 const server = http.createServer((req, res) => {
-  res.writeHead(200);
-  res.end('OK');
 });
 
 server.listen(port, () => {

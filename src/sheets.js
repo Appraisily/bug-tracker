@@ -1,39 +1,11 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
-import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
-
-const secretManagerClient = new SecretManagerServiceClient();
-let cachedSpreadsheetId = null;
-
-async function getSpreadsheetId() {
-  try {
-    if (cachedSpreadsheetId) {
-      console.log('[DEBUG] Using cached spreadsheet ID');
-      return cachedSpreadsheetId;
-    }
-
-    const name = 'projects/civil-forge-403609/secrets/SHEETS_ID_BUG_TRACKER/versions/latest';
-    console.log('[DEBUG] Accessing secret version:', name);
-    
-    const [version] = await secretManagerClient.accessSecretVersion({ name });
-    cachedSpreadsheetId = version.payload.data.toString();
-    console.log('[DEBUG] Successfully retrieved and cached spreadsheet ID');
-    
-    return cachedSpreadsheetId;
-  } catch (error) {
-    console.error('[DEBUG] Error in getSpreadsheetId:', {
-      error: error.message,
-      stack: error.stack,
-      code: error.code,
-      details: error.details
-    });
-    throw error;
-  }
-}
+import { secretManagerClient } from './config.js';
+import { getSpreadsheetId } from './config.js';
 
 async function getSheet() {
   console.log('[DEBUG] Getting spreadsheet ID');
   try {
-    const spreadsheetId = await getSpreadsheetId();
+    const spreadsheetId = getSpreadsheetId();
     console.log('[DEBUG] Got spreadsheet ID:', spreadsheetId);
 
     if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
