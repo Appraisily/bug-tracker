@@ -1,15 +1,14 @@
 import { processLogEntry } from '../../utils/logging.js';
 
-let isProcessing = false;
+const messageQueue = [];
+let processingPromise = null;
 
-export async function handlePubSubMessage(message) {
-  if (isProcessing) {
-    message.nack();
+async function processNextMessage() {
+  if (messageQueue.length === 0 || processingPromise) {
     return;
   }
 
-  isProcessing = true;
-  
+  const message = messageQueue[0];
   try {
     console.log('[DEBUG] Processing message:', message.id);
     
@@ -18,6 +17,8 @@ export async function handlePubSubMessage(message) {
     
     await processLogEntry(logEntry);
     
+    // Only remove from queue and ack if processing succeeded
+    messageQueue.shift();
     message.ack();
     console.log('[DEBUG] Successfully processed message:', message.id);
   } catch (error) {
@@ -26,8 +27,24 @@ export async function handlePubSubMessage(message) {
       error: error.message || 'Unknown error',
       stack: error.stack
     });
-    message.nack();
+    // On error, nack the message and remove it from queue
+    messageQueue.shift();
+    message.nack(); 
   } finally {
-    isProcessing = false;
+    processingPromise = null;
+    // Process next message if any
+    if (messageQueue.length > 0) {
+      processingPromise = processNextMessage();
+    }
+  }
+}
+
+export function handlePubSubMessage(message) {
+  // Add message to queue
+  messageQueue.push(message);
+  
+  // Start processing if not already processing
+  if (!processingPromise) {
+    processingPromise = processNextMessage();
   }
 }
