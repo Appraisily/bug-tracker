@@ -1,8 +1,9 @@
 import { getSheetsClient } from './auth.js';
 import { getSpreadsheetId } from './config.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const SHEET_NAME = 'Errors';
-const HEADERS = ['Timestamp', 'Service', 'Severity', 'Error Message', 'Stack Trace', 'Metadata'];
+const HEADERS = ['Bug ID', 'Timestamp', 'Service', 'Severity', 'Error Message', 'Stack Trace', 'Metadata'];
 
 async function ensureSheetExists() {
   const spreadsheetId = getSpreadsheetId();
@@ -35,7 +36,7 @@ async function ensureSheetExists() {
 
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${SHEET_NAME}!A1:F1`,
+        range: `${SHEET_NAME}!A1:G1`,
         valueInputOption: 'USER_ENTERED',
         resource: {
           values: [HEADERS]
@@ -57,11 +58,12 @@ export async function writeError(error) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${SHEET_NAME}!A:F`,
+      range: `${SHEET_NAME}!A:G`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       resource: {
         values: [[
+          uuidv4(),
           new Date().toISOString(),
           error.service || 'unknown',
           error.severity || 'ERROR',

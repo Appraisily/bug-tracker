@@ -1,24 +1,31 @@
 import { PubSub } from '@google-cloud/pubsub';
 import { processLogEntry } from './logging.js';
 
+const MAX_MESSAGES = 100;
 const pubsub = new PubSub();
 const subscriptionName = process.env.PUBSUB_SUBSCRIPTION || 'bug-tracker-errors';
-let processingMessage = false;
 
 export async function startPubSubListener() {
-  const subscription = pubsub.subscription(subscriptionName);
+  const subscription = pubsub.subscription(subscriptionName, {
+    flowControl: {
+      maxMessages: MAX_MESSAGES
+    }
+  });
 
   subscription.on('message', async (message) => {
-    if (processingMessage) {
-      message.nack();
-      return;
-    }
-
     try {
-      processingMessage = true;
       console.log('[DEBUG] Received Pub/Sub message:', message.id);
       
-      const logEntry = JSON.parse(Buffer.from(message.data, 'base64').toString());
+      let logEntry;
+      try {
+        const data = Buffer.from(message.data, 'base64').toString();
+        logEntry = JSON.parse(data);
+      } catch (parseError) {
+        console.error('[DEBUG] Failed to parse message:', parseError);
+        message.ack(); // Acknowledge invalid messages to avoid reprocessing
+        return;
+      }
+
       await processLogEntry(logEntry);
       
       message.ack();
@@ -26,12 +33,11 @@ export async function startPubSubListener() {
     } catch (error) {
       console.error('[DEBUG] Error processing message:', {
         messageId: message.id,
-        error: error.message,
+        error: error.message || 'Unknown error',
         stack: error.stack
       });
-      message.nack();
-    } finally {
-      processingMessage = false;
+      // Only nack if it's a processing error, not a parsing error
+      message.nack(); 
     }
   });
 

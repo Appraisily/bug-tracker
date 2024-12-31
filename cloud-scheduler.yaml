@@ -1,0 +1,15 @@
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  - scheduler
+  - jobs
+  - create
+  - http
+  - bug-tracker-keepwarm
+  - --schedule=*/5 * * * *
+  - --uri=${_SERVICE_URL}/health
+  - --http-method=GET
+  - --attempt-deadline=30s
+  - --time-zone=UTC
+  substitutions:
+    _SERVICE_URL: https://bug-tracker-YOUR_PROJECT_ID.a.run.app
