@@ -1,4 +1,4 @@
-import { getSheetsClient, invalidateCache } from './auth.js';
+import { getSheetsClient } from './auth.js';
 import { getSpreadsheetId } from './config.js';
 
 const SHEET_NAME = 'Errors';
@@ -70,37 +70,6 @@ export async function writeError(error) {
 
     console.log('[DEBUG] Successfully wrote error to sheet');
   } catch (error) {
-    if (error.message?.includes('network socket disconnected')) {
-      await invalidateCache();
-      // Retry once with fresh client
-      try {
-        const sheets = await getSheetsClient();
-        await sheets.spreadsheets.values.append({
-          spreadsheetId,
-          range: `${SHEET_NAME}!A:F`,
-          valueInputOption: 'USER_ENTERED',
-          insertDataOption: 'INSERT_ROWS',
-          resource: {
-            values: [[
-              new Date().toISOString(),
-              error.service || 'unknown',
-              error.severity || 'ERROR',
-              error.message,
-              error.stack || '',
-              JSON.stringify(error.metadata || {})
-            ]]
-          }
-        });
-        console.log('[DEBUG] Successfully wrote error to sheet after retry');
-        return;
-      } catch (retryError) {
-        console.error('[DEBUG] Error writing to sheet after retry:', {
-          message: retryError.message,
-          stack: retryError.stack,
-          response: retryError.response?.data || retryError.response
-        });
-      }
-    }
     console.error('[DEBUG] Error writing to sheet:', {
       message: error.message,
       stack: error.stack,
