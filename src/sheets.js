@@ -65,9 +65,9 @@ export async function writeError(error) {
           new Date().toISOString(),
           error.service || 'unknown',
           error.severity || 'ERROR',
-          error.message || error.errorMessage,
+          (error.message || error.errorMessage || '').replace(/\n/g, ' '),
           error.stack || error.stackTrace || '',
-          typeof error.metadata === 'string' ? error.metadata : JSON.stringify(error.metadata || {})
+          JSON.stringify(error.metadata || {}, null, 2)
         ]]
       }
     });
