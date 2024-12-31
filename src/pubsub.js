@@ -1,19 +1,26 @@
 import { PubSub } from '@google-cloud/pubsub';
 import { processLogEntry } from './logging.js';
+import { getSheetsClient } from './auth.js';
 
-const MAX_MESSAGES = 100;
 const pubsub = new PubSub();
 const subscriptionName = process.env.PUBSUB_SUBSCRIPTION || 'bug-tracker-errors';
+let isProcessing = false;
 
 export async function startPubSubListener() {
-  const subscription = pubsub.subscription(subscriptionName, {
-    flowControl: {
-      maxMessages: MAX_MESSAGES
-    }
-  });
+  // Initialize sheets client first
+  await getSheetsClient();
+  
+  const subscription = pubsub.subscription(subscriptionName);
 
   subscription.on('message', async (message) => {
     try {
+      if (isProcessing) {
+        // If we're already processing a message, nack this one to retry later
+        message.nack();
+        return;
+      }
+      
+      isProcessing = true;
       console.log('[DEBUG] Received Pub/Sub message:', message.id);
       
       let logEntry;
@@ -23,6 +30,7 @@ export async function startPubSubListener() {
       } catch (parseError) {
         console.error('[DEBUG] Failed to parse message:', parseError);
         message.ack(); // Acknowledge invalid messages to avoid reprocessing
+        isProcessing = false;
         return;
       }
 
@@ -38,6 +46,8 @@ export async function startPubSubListener() {
       });
       // Only nack if it's a processing error, not a parsing error
       message.nack(); 
+    } finally {
+      isProcessing = false;
     }
   });
 
