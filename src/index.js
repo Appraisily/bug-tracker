@@ -1,7 +1,6 @@
-import { initializeConfig, getSpreadsheetId } from './config.js';
-import { writeError } from './sheets.js';
+import { initializeConfig } from './config.js';
 import { startServer } from './server.js';
-import { startPubSubListener } from './pubsub.js';
+import { startPubSubListener } from './services/pubsub/index.js';
 
 async function main() {
   try {
