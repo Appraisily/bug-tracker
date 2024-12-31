@@ -8,48 +8,52 @@ async function ensureSheetExists() {
   const spreadsheetId = getSpreadsheetId();
   const sheets = await getSheetsClient();
 
-  const spreadsheet = await sheets.spreadsheets.get({
-    spreadsheetId,
-    fields: 'sheets.properties'
-  });
-
-  const sheet = spreadsheet.data.sheets?.find(
-    sheet => sheet.properties?.title === SHEET_NAME
-  );
-
-  if (!sheet) {
-    console.log(`[DEBUG] Creating ${SHEET_NAME} sheet`);
-    await sheets.spreadsheets.batchUpdate({
+  try {
+    const spreadsheet = await sheets.spreadsheets.get({
       spreadsheetId,
-      resource: {
-        requests: [{
-          addSheet: {
-            properties: {
-              title: SHEET_NAME
+      fields: 'sheets.properties'
+    });
+
+    const sheet = spreadsheet.data.sheets?.find(
+      sheet => sheet.properties?.title === SHEET_NAME
+    );
+
+    if (!sheet) {
+      console.log(`[DEBUG] Creating ${SHEET_NAME} sheet`);
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        resource: {
+          requests: [{
+            addSheet: {
+              properties: {
+                title: SHEET_NAME
+              }
             }
-          }
-        }]
-      }
-    });
+          }]
+        }
+      });
 
-    // Add headers
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `${SHEET_NAME}!A1:F1`,
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [HEADERS]
-      }
-    });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${SHEET_NAME}!A1:F1`,
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: [HEADERS]
+        }
+      });
+    }
+  } catch (error) {
+    console.error('[DEBUG] Error ensuring sheet exists:', error.message);
+    throw error;
   }
 }
 
 export async function writeError(error) {
+  const spreadsheetId = getSpreadsheetId();
+  const sheets = await getSheetsClient();
+
   try {
     await ensureSheetExists();
-    
-    const spreadsheetId = getSpreadsheetId();
-    const sheets = await getSheetsClient();
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
@@ -61,20 +65,16 @@ export async function writeError(error) {
           new Date().toISOString(),
           error.service || 'unknown',
           error.severity || 'ERROR',
-          error.message,
-          error.stack || '',
-          JSON.stringify(error.metadata || {})
+          error.message || error.errorMessage,
+          error.stack || error.stackTrace || '',
+          typeof error.metadata === 'string' ? error.metadata : JSON.stringify(error.metadata || {})
         ]]
       }
     });
 
     console.log('[DEBUG] Successfully wrote error to sheet');
-  } catch (error) {
-    console.error('[DEBUG] Error writing to sheet:', {
-      message: error.message,
-      stack: error.stack,
-      response: error.response?.data || error.response
-    });
-    throw error;
+  } catch (err) {
+    console.error('[DEBUG] Error writing to sheet:', err.message);
+    throw err;
   }
 }

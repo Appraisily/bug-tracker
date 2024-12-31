@@ -3,12 +3,19 @@ import { processLogEntry } from './logging.js';
 
 const pubsub = new PubSub();
 const subscriptionName = process.env.PUBSUB_SUBSCRIPTION || 'bug-tracker-errors';
+let processingMessage = false;
 
 export async function startPubSubListener() {
   const subscription = pubsub.subscription(subscriptionName);
 
   subscription.on('message', async (message) => {
+    if (processingMessage) {
+      message.nack();
+      return;
+    }
+
     try {
+      processingMessage = true;
       console.log('[DEBUG] Received Pub/Sub message:', message.id);
       
       const logEntry = JSON.parse(Buffer.from(message.data, 'base64').toString());
@@ -23,6 +30,8 @@ export async function startPubSubListener() {
         stack: error.stack
       });
       message.nack();
+    } finally {
+      processingMessage = false;
     }
   });
 
